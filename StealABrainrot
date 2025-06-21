@@ -1,4 +1,6 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+
 
 local player = game:GetService("Players").LocalPlayer
 local shop = player.PlayerGui:FindFirstChild("Main") and player.PlayerGui.Main:FindFirstChild("CoinsShop")
@@ -17,6 +19,7 @@ local Tabs = {
     Updates = Window:AddTab({ Title = "Home", Icon = "home" }),
     Main = Window:AddTab({ Title = "Main", Icon = "rocket" }),
     Server = Window:AddTab({ Title = "Server", Icon = "server" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" }),
 }
 
 local plotName
@@ -33,7 +36,7 @@ local rtp = Tabs.Main:AddParagraph({ Title = "Lock Time: " .. remainingTime.Text
 task.spawn(function()
     while true do
         rtp:SetTitle("Lock Time: " .. remainingTime.Text)
-        task.wait(1)
+        task.wait(0.5)
     end
 end)
 
@@ -65,6 +68,38 @@ Tabs.Main:AddParagraph({
     Title = "Use Speed Coil/Invisibility Cloak For Higher Speed",
 })
 
+local currentSpeed = 0
+SpeedSlider:OnChanged(function(Value)
+    currentSpeed = tonumber(Value) or 0
+end)
+
+local function sSpeed(character)
+    local hum = character:WaitForChild("Humanoid")
+    local hb = game:GetService("RunService").Heartbeat
+    
+    task.spawn(function()
+        while character and hum and hum.Parent do
+            if currentSpeed > 0 and hum.MoveDirection.Magnitude > 0 then
+                character:TranslateBy(hum.MoveDirection * currentSpeed * hb:Wait() * 10)
+            end
+            task.wait()
+        end
+    end)
+end
+
+local function onCharacterAdded(character)
+    sSpeed(character)
+end
+
+player.CharacterAdded:Connect(onCharacterAdded)
+
+if player.Character then
+    onCharacterAdded(player.Character)
+end
+
+-- ESP
+
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
@@ -82,7 +117,7 @@ local function createESP(player)
     if not humanoidRootPart then return end
     
     local billboard = Instance.new("BillboardGui")
-    billboard.Name = "ESP_" .. player.DisplayName
+    billboard.Name = "ESP_" .. player.Name
     billboard.AlwaysOnTop = true
     billboard.Size = UDim2.new(0, 200, 0, 30)
     billboard.StudsOffset = Vector3.new(0, 3, 0)
@@ -93,7 +128,7 @@ local function createESP(player)
     textLabel.Name = "NameLabel"
     textLabel.Size = UDim2.new(1, 0, 1, 0)
     textLabel.BackgroundTransparency = 1
-    textLabel.Text = player.Name
+    textLabel.Text = player.DisplayName
     textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
     textLabel.TextStrokeTransparency = 0
@@ -160,6 +195,10 @@ end
 initPlayerConnections()
 
 local RaritySettings = {
+    ["Legendary"] = {
+        Color = Color3.new(1, 1, 0),
+        Size = UDim2.new(0, 150, 0, 50)
+    },
     ["Mythic"] = {
         Color = Color3.new(1, 0, 0),
         Size = UDim2.new(0, 150, 0, 50)
@@ -191,24 +230,24 @@ local MutationSettings = {
 
 local activeRarityEsp = {}
 local activeLockTimeEsp = false
-local lockTimeEspInstances = {}
+local lteInstances = {}
 
 local function UpdateLockTimeESP()
     if not activeLockTimeEsp then
-        for _, instance in pairs(lockTimeEspInstances) do
+        for _, instance in pairs(lteInstances) do
             if instance then
                 instance:Destroy()
             end
         end
-        lockTimeEspInstances = {}
+        lteInstances = {}
         return
     end
 
     for _, plot in pairs(workspace.Plots:GetChildren()) do
         local timeLabel = plot:FindFirstChild("Purchases", true) and 
-                         plot.Purchases:FindFirstChild("PlotBlock", true) and
-                         plot.Purchases.PlotBlock.Main:FindFirstChild("BillboardGui", true) and
-                         plot.Purchases.PlotBlock.Main.BillboardGui:FindFirstChild("RemainingTime", true)
+        plot.Purchases:FindFirstChild("PlotBlock", true) and
+        plot.Purchases.PlotBlock.Main:FindFirstChild("BillboardGui", true) and
+        plot.Purchases.PlotBlock.Main.BillboardGui:FindFirstChild("RemainingTime", true)
         
         if timeLabel and timeLabel:IsA("TextLabel") then
             local espName = "LockTimeESP_" .. plot.Name
@@ -246,7 +285,7 @@ local function UpdateLockTimeESP()
                 label.Parent = billboard
                 
                 billboard.Parent = plot
-                lockTimeEspInstances[plot.Name] = billboard
+                lteInstances[plot.Name] = billboard
             else
                 existingBillboard.TextLabel.Text = displayText
                 existingBillboard.TextLabel.TextColor3 = textColor
@@ -336,20 +375,18 @@ end
 
 local MultiDropdown = Tabs.Main:AddDropdown("MultiDropdown", {
     Title = "Esp",
-    Values = {"Lock Times", "Players", "Mythic", "Brainrot God", "Secret",},
+    Values = {"Lock Times", "Players", "Legendary", "Mythic", "Brainrot God", "Secret",},
     Multi = true,
     Default = {},
 })
 
 MultiDropdown:OnChanged(function(Value)
     if Value["Players"] then
-        print("Players is enabled")
         toggleESP(true)
     else
-        print("Players is disabled")
         toggleESP(false)
     end
-    
+    activeRarityEsp["Legendary"] = Value["Legendary"] or false
     activeRarityEsp["Mythic"] = Value["Mythic"] or false
     activeRarityEsp["Brainrot God"] = Value["Brainrot God"] or false
     activeRarityEsp["Secret"] = Value["Secret"] or false
@@ -359,15 +396,11 @@ MultiDropdown:OnChanged(function(Value)
     
     UpdateRarityESP()
     
-    print("Mythic ESP:", activeRarityEsp["Mythic"])
-    print("Brainrot God ESP:", activeRarityEsp["Brainrot God"])
-    print("Secret ESP:", activeRarityEsp["Secret"])
-    print("Lock Times ESP:", activeLockTimeEsp)
 end)
 
 task.spawn(function()
     while true do
-        task.wait(1)
+        task.wait(0.5)
         if activeLockTimeEsp then
             UpdateLockTimeESP()
         end
@@ -405,23 +438,119 @@ Tabs.Main:AddKeybind("Keybind", {
     end,
 })
 
-local currentSpeed = 0
-SpeedSlider:OnChanged(function(Value)
-    currentSpeed = tonumber(Value) or 0
-end)
 
-task.spawn(function()
-    local chr = player.Character or player.CharacterAdded:Wait()
-    local hum = chr:WaitForChild("Humanoid")
-    local hb = game:GetService("RunService").Heartbeat
 
-    while true do
-        if currentSpeed > 0 and hum.MoveDirection.Magnitude > 0 then
-            chr:TranslateBy(hum.MoveDirection * currentSpeed * hb:Wait() * 10)
+-- SERVER
+
+local petModels = game:GetService("ReplicatedStorage").Models.Animals:GetChildren()
+
+local petNames = {}
+for _, pet in ipairs(petModels) do
+    table.insert(petNames, pet.Name)
+end
+
+local MultiDropdown = Tabs.Server:AddDropdown("MultiDropdown", {
+    Title = "Pet Finder",
+    Values = petNames,
+    Multi = true,
+    Default = {},
+})
+
+local function getOwner(plot)
+    local text = plot:FindFirstChild("PlotSign") and 
+    plot.PlotSign:FindFirstChild("SurfaceGui") and 
+    plot.PlotSign.SurfaceGui.Frame.TextLabel.Text or "Unknown"
+    return text:match("^(.-)'s Base") or text
+end
+
+local myPlotName
+for _, plot in ipairs(workspace.Plots:GetChildren()) do
+    if plot:FindFirstChild("YourBase", true).Enabled then
+        myPlotName = plot.Name
+        break
+    end
+end
+
+local Rparagraph = Tabs.Server:AddParagraph({
+    Title = "No pets selected",
+})
+
+local SelectedPets = {}
+local isRunning = false
+local lnt = 0
+local nc = 5
+
+MultiDropdown:OnChanged(function(SelectedPetss)
+    SelectedPets = {}
+    for petName, isSelected in pairs(SelectedPetss) do
+        if isSelected then
+            table.insert(SelectedPets, petName)
         end
-        task.wait()
+    end
+    
+    if not isRunning and #SelectedPets > 0 then
+        isRunning = true
+        task.spawn(function()
+            local lastResults = {}
+            
+            while #SelectedPets > 0 do
+                local counts = {}
+                local found = false
+                local newPetsFound = false
+                
+                for _, plot in pairs(workspace.Plots:GetChildren()) do
+                    if plot.Name ~= myPlotName then
+                        local owner = getOwner(plot)
+                        for _, v in pairs(plot:GetDescendants()) do
+                            if v.Name == "DisplayName" and table.find(SelectedPets, v.Text) then
+                                counts[owner] = counts[owner] or {}
+                                counts[owner][v.Text] = (counts[owner][v.Text] or 0) + 1
+                                found = true
+                                
+                                if not lastResults[owner] or not lastResults[owner][v.Text] then
+                                    newPetsFound = true
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                if found then
+                    local resultText = ""
+                    for owner, pets in pairs(counts) do
+                        for name, count in pairs(pets) do
+                            resultText = resultText .. name.." x"..count.." | Owner: "..owner.."\n"
+                            
+                            if newPetsFound and (os.time() - lnt) > nc then
+                                Fluent:Notify({
+                                    Title = "Pet Finder",
+                                    Content = "Found "..name.." x"..count.." Owner: "..owner,
+                                    Duration = 2
+                                })
+                                lnt = os.time()
+                            end
+                        end
+                    end
+                    Rparagraph:SetTitle(resultText)
+                else
+                    Rparagraph:SetTitle("No selected pets found")
+                end
+                
+                lastResults = counts
+                task.wait(1)
+            end
+            
+            isRunning = false
+            Rparagraph:SetTitle("No pets selected")
+        end)
+    elseif #SelectedPets == 0 then
+        Rparagraph:SetTitle("No pets selected")
     end
 end)
+
+
+Tabs.Server:AddSection("Other")
+
 
 Tabs.Server:AddButton({
     Title = "Server Hop",
@@ -451,7 +580,7 @@ Tabs.Server:AddButton({
                 foundAnything = Site.nextPageCursor
             end
             local num = 0;
-            for i,v in pairs(Site.data) do
+            for _,v in pairs(Site.data) do
                 local Possible = true
                 ID = tostring(v.id)
                 if tonumber(v.maxPlayers) > tonumber(v.playing) then
@@ -542,4 +671,9 @@ game:GetService('Players').LocalPlayer.Idled:Connect(function()
 end)
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+SaveManager:SetLibrary(Fluent)
+SaveManager:BuildConfigSection(Tabs.Settings)
+SaveManager:LoadAutoloadConfig()
+
 Window:SelectTab(1)
