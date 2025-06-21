@@ -97,6 +97,24 @@ if player.Character then
     onCharacterAdded(player.Character)
 end
 
+
+Tabs.Main:AddButton({
+    Title = "Invisible",
+    Description = "Use Invisibility Cloak",
+    Callback = function()
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local cloak = character:FindFirstChild("Invisibility Cloak")
+        
+        if cloak and cloak:GetAttribute("SpeedModifier") == 2 then
+            cloak.Parent = workspace
+        else
+            Fluent:Notify({ Title = "Uni Hub", Content = "Use Invisibility Cloak First", Duration = 2 })
+        end
+    end
+})
+
+
 -- ESP
 
 
@@ -375,7 +393,7 @@ end
 
 local MultiDropdown = Tabs.Main:AddDropdown("MultiDropdown", {
     Title = "Esp",
-    Values = {"Lock Times", "Players", "Legendary", "Mythic", "Brainrot God", "Secret",},
+    Values = {"Lock", "Players", "Legendary", "Mythic", "Brainrot God", "Secret",},
     Multi = true,
     Default = {},
 })
@@ -391,7 +409,7 @@ MultiDropdown:OnChanged(function(Value)
     activeRarityEsp["Brainrot God"] = Value["Brainrot God"] or false
     activeRarityEsp["Secret"] = Value["Secret"] or false
     
-    activeLockTimeEsp = Value["Lock Times"] or false
+    activeLockTimeEsp = Value["Lock"] or false
     UpdateLockTimeESP()
     
     UpdateRarityESP()
