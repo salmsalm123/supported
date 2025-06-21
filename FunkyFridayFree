@@ -26,92 +26,115 @@ local Side = nil
 
 local Toggle = Tabs.Main:AddToggle("Toggle", {
     Title = "Auto Player",
-    Description = "Automatically Hit Notes",
+    Description = "Automatically Hit Notes (toggle after joining a match)",
     Default = false
 })
 
 Toggle:OnChanged(function()
     if Toggle.Value then
         local VirtualInputManager = game:GetService("VirtualInputManager")
+        local RunService = game:GetService("RunService")
+        local Players = game:GetService("Players")
 
         _G.auto = true
+        _G.Delay = _G.Delay or 0
 
-        while _G.auto do
+        local keymap = {
+            key1,
+            key2,
+            key3,
+            key4,
+            key5,
+            key6,
+            key7,
+            key8,
+            key9,
+        }
+
+        local function setupColumns(side)
+            local columns = {}
             pcall(function()
-                local player = game:GetService("Players").LocalPlayer
-                local ap = player.PlayerGui.Window.Game.Fields[Side].Inner
-
-                local column0 = ap.Lane1.Notes:GetChildren()
-                local column1 = ap.Lane2.Notes:GetChildren()
-                local column2 = ap.Lane3.Notes:GetChildren()
-                local column3 = ap.Lane4.Notes:GetChildren()
-                pcall(function ()
-                    column4 = ap.Lane5.Notes:GetChildren()
-                end)
-
-                pcall(function ()
-                    column5 = ap.Lane6.Notes:GetChildren()
-                end)
-
-                pcall(function ()
-                    column6 = ap.Lane7.Notes:GetChildren()
-                end)
-
-                pcall(function ()
-                    column7 = ap.Lane8.Notes:GetChildren()
-                end)
-
-                pcall(function ()
-                    column8 = ap.Lane9.Notes:GetChildren()
-                end)
-
-                local function autoplay(children, keyCode)
-                    local frameDetected = false
-
-                    for _, child in pairs(children) do
-                        if child.Position.Y.Scale > (0.4 + 1e-9) + _G.Delay and child:IsA("Frame") and #child:GetChildren() == 2 then
-                            frameDetected = true
-                            coroutine.wrap(function()
-                                VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
-                                
-                                while child.Parent do
-                                    task.wait()
-                                end
-                                VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
-                            end)()
-                            break
+                local ap = Players.LocalPlayer.PlayerGui.Window.Game.Fields[side].Inner
+                
+                for i = 1, 9 do
+                    pcall(function()
+                        local lane = ap["Lane"..i]
+                        if lane then
+                            columns[i] = lane.Notes
                         end
-                    end
-
-                    if not frameDetected then
-                        for _, child in pairs(children) do
-                            if child.Position.Y.Scale > 0.4 + _G.Delay and child:IsA("Frame") then
-                                coroutine.wrap(function()
-                                    VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
-                                    
-                                    while child.Parent do
-                                        task.wait()
-                                    end
-                                    VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
-                                end)()
-                                break
-                            end
-                        end
-                    end
+                    end)
                 end
-
-                autoplay(column0, key1)
-                autoplay(column1, key2)
-                autoplay(column2, key3)
-                autoplay(column3, key4)
-                autoplay(column4, key5)
-                autoplay(column5, key6)
-                autoplay(column6, key7)
-                autoplay(column7, key8)
-                autoplay(column8, key9)
             end)
-            task.wait()
+            return columns
         end
+
+        local function autoplay()
+            while _G.auto do
+                pcall(function()
+                    local columns = setupColumns(Side)
+                    local trackedChildren = {}
+                    local activationThreshold = 0.4 + 1e-9 + _G.Delay
+
+                    for columnNum, column in pairs(columns) do
+                        pcall(function()
+                            trackedChildren[columnNum] = {}
+                            for _, child in ipairs(column:GetChildren()) do
+                                pcall(function()
+                                    if child:IsA("GuiObject") and child.Position.Y.Scale > activationThreshold then
+                                        trackedChildren[columnNum][child] = true
+                                        VirtualInputManager:SendKeyEvent(true, keymap[columnNum], false, game)
+                                    end
+                                end)
+                            end
+                        end)
+                    end
+
+                    while _G.auto do
+                        pcall(function()
+                            for columnNum, column in pairs(columns) do
+                                pcall(function()
+                                    for _, child in ipairs(column:GetChildren()) do
+                                        pcall(function()
+                                            if child:IsA("GuiObject") and not trackedChildren[columnNum][child] and child.Position.Y.Scale > activationThreshold then
+                                                trackedChildren[columnNum][child] = true
+                                                VirtualInputManager:SendKeyEvent(true, keymap[columnNum], false, game)
+                                                
+                                                if #child:GetChildren() == 2 then
+                                                    coroutine.wrap(function()
+                                                        pcall(function()
+                                                            while child.Parent and child.Position.Y.Scale > activationThreshold and _G.auto do
+                                                                RunService.Heartbeat:Wait()
+                                                            end
+                                                            VirtualInputManager:SendKeyEvent(false, keymap[columnNum], false, game)
+                                                            trackedChildren[columnNum][child] = nil
+                                                        end)
+                                                    end)()
+                                                end
+                                            end
+                                        end)
+                                    end
+                                    
+                                    for child in pairs(trackedChildren[columnNum]) do
+                                        pcall(function()
+                                            if not child:IsDescendantOf(column) or 
+                                               (child:IsA("GuiObject") and child.Position.Y.Scale <= activationThreshold) then
+                                                if trackedChildren[columnNum][child] then
+                                                    VirtualInputManager:SendKeyEvent(false, keymap[columnNum], false, game)
+                                                end
+                                                trackedChildren[columnNum][child] = nil
+                                            end
+                                        end)
+                                    end
+                                end)
+                            end
+                            RunService.Heartbeat:Wait()
+                        end)
+                    end
+                end)
+            end
+        end
+
+        coroutine.wrap(autoplay)()
     else
         _G.auto = false
     end
@@ -148,6 +171,9 @@ local Keybind = Tabs.Main:AddKeybind("Keybind", {
     end,
 })
 
+local Section = Tabs.Main:AddParagraph({
+    Title = "Use DownScroll",
+})
 
 Tabs.Main:AddSection("Adjustments")
 
@@ -175,10 +201,12 @@ local Slider = Tabs.Main:AddSlider("Slider", {
             if _G.Mode == "Static" then
                 _G.Delay = Value
                 local player = game.Players.LocalPlayer
-                if player.PlayerGui.GameGui.Windows.Configuration.Frame.Body.Content.Settings.Entries.ScrollingFrame.DownScroll.Toggle.Inner.BackgroundColor3 == {85, 255, 85} then
+                if player.PlayerGui.GameGui.Windows.Configuration.Frame.Body.Content.Settings.Entries.ScrollingFrame.DownScroll.Toggle.Inner.BackgroundColor3 == Color3.new(85/255, 255/255, 85/255) then
                     _G.Delay = _G.Delay - _G.Delay - _G.Delay
+                    print("downscroll")
                 else
-                    _G.Delay = Value
+                    _G.Delay = _G.Delay - _G.Delay - _G.Delay
+                    print("upscroll")
                 end
             else
                 task.spawn(function()
