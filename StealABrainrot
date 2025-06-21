@@ -246,11 +246,11 @@ local MutationSettings = {
     }
 }
 
-local activeRarityEsp = {}
+local activeESP = {}
 local activeLockTimeEsp = false
 local lteInstances = {}
 
-local function UpdateLockTimeESP()
+local function updatelock()
     if not activeLockTimeEsp then
         for _, instance in pairs(lteInstances) do
             if instance then
@@ -312,7 +312,7 @@ local function UpdateLockTimeESP()
     end
 end
 
-local function UpdateRarityESP()
+local function updateRESP()
     for _, plot in pairs(workspace.Plots:GetChildren()) do
         if plot.Name ~= plotName then
             for _, child in pairs(plot:GetDescendants()) do
@@ -323,7 +323,7 @@ local function UpdateRarityESP()
                     local existingBillboard = parentModel:FindFirstChild(espName)
                     local existingMutationBillboard = parentModel:FindFirstChild(mutationEspName)
                     
-                    if activeRarityEsp[child.Text] then
+                    if activeESP[child.Text] then
                         if not existingBillboard then
                             local settings = RaritySettings[child.Text]
                             
@@ -404,15 +404,15 @@ MultiDropdown:OnChanged(function(Value)
     else
         toggleESP(false)
     end
-    activeRarityEsp["Legendary"] = Value["Legendary"] or false
-    activeRarityEsp["Mythic"] = Value["Mythic"] or false
-    activeRarityEsp["Brainrot God"] = Value["Brainrot God"] or false
-    activeRarityEsp["Secret"] = Value["Secret"] or false
+    activeESP["Legendary"] = Value["Legendary"] or false
+    activeESP["Mythic"] = Value["Mythic"] or false
+    activeESP["Brainrot God"] = Value["Brainrot God"] or false
+    activeESP["Secret"] = Value["Secret"] or false
     
     activeLockTimeEsp = Value["Lock"] or false
-    UpdateLockTimeESP()
+    updatelock()
     
-    UpdateRarityESP()
+    updateRESP()
     
 end)
 
@@ -420,10 +420,10 @@ task.spawn(function()
     while true do
         task.wait(0.5)
         if activeLockTimeEsp then
-            UpdateLockTimeESP()
+            updatelock()
         end
-        if next(activeRarityEsp) ~= nil then
-            UpdateRarityESP()
+        if next(activeESP) ~= nil then
+            updateRESP()
         end
     end
 end)
