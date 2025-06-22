@@ -36,7 +36,7 @@ local rtp = Tabs.Main:AddParagraph({ Title = "Lock Time: " .. remainingTime.Text
 task.spawn(function()
     while true do
         rtp:SetTitle("Lock Time: " .. remainingTime.Text)
-        task.wait(0.5)
+        task.wait(0.25)
     end
 end)
 
@@ -105,7 +105,6 @@ Tabs.Main:AddButton({
         local player = game.Players.LocalPlayer
         local character = player.Character or player.CharacterAdded:Wait()
         local cloak = character:FindFirstChild("Invisibility Cloak")
-        
         if cloak and cloak:GetAttribute("SpeedModifier") == 2 then
             cloak.Parent = workspace
         else
@@ -236,10 +235,17 @@ local MutationSettings = {
         Color = Color3.fromRGB(255, 215, 0),
         Size = UDim2.new(0, 120, 0, 30)
     },
+
     ["Diamond"] = {
         Color = Color3.fromRGB(0, 191, 255),
         Size = UDim2.new(0, 120, 0, 30)
     },
+
+    ["Rainbow"] = {
+        Color = Color3.fromRGB(255, 192, 203),
+        Size = UDim2.new(0, 120, 0, 30)
+    },
+
     ["Bloodrot"] = {
         Color = Color3.fromRGB(139, 0, 0),
         Size = UDim2.new(0, 120, 0, 30)
@@ -418,7 +424,7 @@ end)
 
 task.spawn(function()
     while true do
-        task.wait(0.5)
+        task.wait(0.25)
         if activeLockTimeEsp then
             updatelock()
         end
@@ -555,7 +561,7 @@ MultiDropdown:OnChanged(function(SelectedPetss)
                 end
                 
                 lastResults = counts
-                task.wait(1)
+                task.wait(0.5)
             end
             
             isRunning = false
