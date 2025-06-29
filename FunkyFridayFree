@@ -26,7 +26,7 @@ local Side = nil
 
 local Toggle = Tabs.Main:AddToggle("Toggle", {
     Title = "Auto Player",
-    Description = "Automatically Hit Notes (toggle after joining a match)",
+    Description = "Automatically Hit Notes (toggle while in song)",
     Default = false
 })
 
